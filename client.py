@@ -25,7 +25,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 clientName=socket.gethostname()
 print("Client name is: " + str(clientName))
-Server = raw_input("Enter IP address of the Server you wish to connect: ") 
+Server = input("Enter IP address of the Server you wish to connect: ") 
 Port = 1218
 server_address = (Server, Port)
 client_ip= socket.gethostbyname(socket.gethostname())
@@ -77,7 +77,7 @@ def fetch(filename, filesize):
             progress.update(len(bytes_read))
 
 
-def _formrequest_(opt):
+def request_(opt):
     if opt == 1:
         pack_seq = 1
         success = 0
@@ -210,6 +210,10 @@ def _extract_(mesg,optn):
 
 class TCP():
      pass
+
+
+
+
 
 ### OUTDATED
 # def client_listen():
