@@ -7,74 +7,56 @@ PORT = 5050
 SEVER = socket.gethostbyname(socket.gethostname())	# Get the IP address of the server
 ADDR = (SEVER, PORT) # tuple of IP address and port number
 FORMAT = 'utf-8'
-DISCONNECT_MESSAGE = "!DISCONNECT"
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create the socket (AF_INET: IPv4, SOCK_STREAM: TCP)
 server.bind(ADDR) # bind the socket to the address
 
 # DEFINE SOME GLOBAL VARIABLES
-managedFiles = dict() # list of files that the server knows
+listManagedFiles = dict() # list of files that the server manages
 numOfClients = 0 # number of clients that the server knows
 
-def receiveFile(conn):
-    msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
-    if msg_length: # if there is a message
-        msg_length = int(msg_length) # convert the message length to integer
-        filename = conn.recv(msg_length).decode(FORMAT) # receive the actual message from the client 
-    # print(f"{filename} need received from the client")
-    ## RECEIVE THE FILE ##
-    with open(filename, "wb") as f:
-        bytes_read = conn.recv(BUFFER_SIZE)
-        if not bytes_read:    
-                # nothing is received # file transmitting is done
-            print("No bytes to read")
-        f.write(bytes_read)
+def acknowledgeFiles(conn, address):
+    global listManagedFiles;
+    msg_length = conn.recv(HEADER).decode(FORMAT) # receive the original file name
+    filename = ""
+    newFilename = ""
+    if msg_length:
+        msg_length = int(msg_length)
+        filename = conn.recv(msg_length).decode(FORMAT)
 
-def sendFile(conn):
-    msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
-    if msg_length: # if there is a message
-        msg_length = int(msg_length) # convert the message length to integer
-        filename = conn.recv(msg_length).decode(FORMAT) # receive the actual message from the client 
-    # print(f"{filename} need to sent to the client")
-    ## SEND THE FILE ##
-    with open(filename, "rb") as f: 
-        while True:
-            # read the bytes from the file
-            bytes_read = f.read(BUFFER_SIZE)
-            if not bytes_read:
-            # file transmitting is done
-                break
-            conn.sendall(bytes_read)
-    print("File sent !")
+    msg_length = conn.recv(HEADER).decode(FORMAT) # receive the new file name
+    if msg_length:
+        msg_length = int(msg_length)
+        newFilename = conn.recv(msg_length).decode(FORMAT)
+    # print(f"The {filename} with the new name {newFilename} need received from the client")
 
-def listFileWhenClientJoin(conn, addr):
-    global managedFiles
-    msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
-    if msg_length: # if there is a message
-        msg_length = int(msg_length) # convert the message length to integer
-        allFiles = conn.recv(msg_length).decode(FORMAT) # receive the actual message from the client
-    allFiles = allFiles.split(",") # split the string into a list
-    
-    for i in range(len(allFiles) - 1):
-
-        if allFiles[i] not in managedFiles:
-            managedFiles[allFiles[i]] = [addr[0]] # only store the ip - skip the port number (may need to modify later for local debug purpose) 
+    # ADD THE FILE TO THE LIST OF MANAGED FILES
+    if newFilename not in listManagedFiles:
+        listManagedFiles[newFilename] = [(address, filename)]
+    else:
+        if (address, filename) not in listManagedFiles[newFilename]:
+            listManagedFiles[newFilename].append((address, filename))
         else:
-            managedFiles[allFiles[i]].append(addr[0]) # append the new ip and port number to the list
-    print(f"Get the list of files from {addr} successfully !")
-    print(managedFiles)
+            print(f"The file {filename} is already in the server !")
 
-def updateFileListWhenClientDisconnect(conn, addr):
-    global managedFiles
-    managedFiles_copy = managedFiles.copy()
-    for key in managedFiles:
-        if addr[0] in managedFiles[key]:
-            managedFiles_copy[key].remove(addr[0])
-            if len(managedFiles_copy[key]) == 0:
-                del managedFiles_copy[key]
-    managedFiles = managedFiles_copy.copy()
-    print(f"Update the list of files when {addr} disconnect successfully !")
+    print(listManagedFiles)
+
+def updateFileListWhenClientDisconnect(conn, address):
+    global listManagedFiles
+    listManagedFiles_copy = listManagedFiles.copy()
+    
+    for key in listManagedFiles_copy:
+        for i in range(len(listManagedFiles_copy[key])):
+            if listManagedFiles_copy[key][i][0] == address:
+                listManagedFiles[key].pop(i)
+                break
+        if len(listManagedFiles[key]) == 0:
+            del listManagedFiles[key]
+            break
+
+def handleFetchFile(conn, addr):
+    pass
 
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
@@ -82,23 +64,23 @@ def handle_client(conn, addr):
     connect = True
 
     while connect:
-
+        # receive the command
         msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
         if msg_length: # if there is a message
             msg_length = int(msg_length) # convert the message length to integer
             command = conn.recv(msg_length).decode(FORMAT) # receive the actual message from the client 
 
+        address = addr[1] # may be need to change to addr[0] for the real IP address
+
+        # hadle the command
         if command == "publish":
-            receiveFile(conn)
+            acknowledgeFiles(conn, address)
         elif command == "fetch":
-            sendFile(conn)
-        elif command == "inform":
-            # print("Inform the client about the current files")
-            listFileWhenClientJoin(conn, addr)
+            handleFetchFile(conn, address)
         elif command == "close":
-            updateFileListWhenClientDisconnect(conn, addr)
+            updateFileListWhenClientDisconnect(conn, address)
             print(f"{addr} is disconnected")
-            print(managedFiles)
+            # print(listManagedFiles)
             conn.close()
             connect = False
             numOfClients -= 1
