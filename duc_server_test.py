@@ -16,6 +16,14 @@ server.bind(ADDR) # bind the socket to the address
 listManagedFiles = dict() # list of files that the server manages
 numOfClients = 0 # number of clients that the server knows
 
+def sendMessage(msg):
+    message = msg.encode(FORMAT) # encode the message
+    msg_length = len(message) # get the message length
+    send_length = str(msg_length).encode(FORMAT) # encode the message length
+    padded_send_length = send_length + b' ' * (HEADER - len(send_length)) # pad the message length
+    server.send(padded_send_length) # send the message length
+    server.send(message) # send the message
+
 def acknowledgeFiles(conn, address):
     global listManagedFiles;
     msg_length = conn.recv(HEADER).decode(FORMAT) # receive the original file name
@@ -56,7 +64,21 @@ def updateFileListWhenClientDisconnect(conn, address):
             break
 
 def handleFetchFile(conn, addr):
-    pass
+    msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
+    filename = ""
+    if msg_length:
+        msg_length = int(msg_length)
+        filename = conn.recv(msg_length).decode(FORMAT)
+
+    if filename not in listManagedFiles:
+        print("File not found !")
+        return
+    
+    print(listManagedFiles[filename])
+    listUser = "-".join(str(element) for element in listManagedFiles[filename])
+    
+    conn.send(str(len(listUser)).encode(FORMAT))
+    conn.send(listUser.encode(FORMAT))
 
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
@@ -65,12 +87,13 @@ def handle_client(conn, addr):
 
     while connect:
         # receive the command
+        command = ""
         msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
         if msg_length: # if there is a message
             msg_length = int(msg_length) # convert the message length to integer
             command = conn.recv(msg_length).decode(FORMAT) # receive the actual message from the client 
 
-        address = addr[1] # may be need to change to addr[0] for the real IP address
+        address = addr # may be need to change to addr[0] for the real IP address
 
         # hadle the command
         if command == "publish":
@@ -80,7 +103,7 @@ def handle_client(conn, addr):
         elif command == "close":
             updateFileListWhenClientDisconnect(conn, address)
             print(f"{addr} is disconnected")
-            # print(listManagedFiles)
+            print(listManagedFiles)
             conn.close()
             connect = False
             numOfClients -= 1
