@@ -16,6 +16,7 @@ server.bind(ADDR) # bind the socket to the address
 listManagedFiles = dict() # list of files that the server manages
 numOfClients = 0 # number of clients that the server knows
 
+# send the message to a client
 def sendMessage(msg):
     message = msg.encode(FORMAT) # encode the message
     msg_length = len(message) # get the message length
@@ -24,6 +25,7 @@ def sendMessage(msg):
     server.send(padded_send_length) # send the message length
     server.send(message) # send the message
 
+# receive the file infromed by the client
 def acknowledgeFiles(conn, address):
     global listManagedFiles;
     msg_length = conn.recv(HEADER).decode(FORMAT) # receive the original file name
@@ -47,9 +49,9 @@ def acknowledgeFiles(conn, address):
             listManagedFiles[newFilename].append((address, filename))
         else:
             print(f"The file {filename} is already in the server !")
+    # print(listManagedFiles)
 
-    print(listManagedFiles)
-
+# update the list of managed files when a client disconnect
 def updateFileListWhenClientDisconnect(conn, address):
     global listManagedFiles
     listManagedFiles_copy = listManagedFiles.copy()
@@ -63,6 +65,7 @@ def updateFileListWhenClientDisconnect(conn, address):
             del listManagedFiles[key]
             break
 
+# handle the fetch command
 def handleFetchFile(conn, addr):
     msg_length = conn.recv(HEADER).decode(FORMAT) # receive the file name
     filename = ""
@@ -70,13 +73,14 @@ def handleFetchFile(conn, addr):
         msg_length = int(msg_length)
         filename = conn.recv(msg_length).decode(FORMAT)
 
+    # HANDLE THE FILE NOT FOUND CASE
     if filename not in listManagedFiles:
         print("File not found !")
         return
     
-    print(listManagedFiles[filename])
+    # print(listManagedFiles[filename])
     listUser = "-".join(str(element) for element in listManagedFiles[filename])
-    
+    # SEND THE LIST OF USERS HAVE THAT FILE
     conn.send(str(len(listUser)).encode(FORMAT))
     conn.send(listUser.encode(FORMAT))
 

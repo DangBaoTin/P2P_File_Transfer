@@ -7,17 +7,22 @@ HEADER = 64 # number of bytes of the message length
 PORT = 5050
 PORT_P2P = 6000
 FORMAT = 'utf-8'
-SERVER = "192.168.1.6"
+SERVER = "192.168.1.6"   # sever máy Trọng Đức
 SERVER_P2P = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT) 
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # socket setup
-client.connect(ADDR) # connect to the server
+# create a socket to connect to the server
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+client.connect(ADDR)
 
+# create a socket to connect between the client
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((SERVER_P2P, PORT_P2P))
 
+# send the message to a specific object
+# conn: the connection to the object
+# msg: the message to be sent
 def sendMessage(conn, msg):
     message = msg.encode(FORMAT) # encode the message
     msg_length = len(message) # get the message length
@@ -26,8 +31,10 @@ def sendMessage(conn, msg):
     conn.send(padded_send_length) # send the message length
     conn.send(message) # send the message
 
+# publish the file to the server
+# type: the type of the command
+# filename: the original file name
 def publishFile(type, filename, newFilename):
-
     ## HANDLE THE FILE NOT FOUND CASE ##
     listFile = os.listdir()
     if filename not in listFile:
@@ -39,6 +46,9 @@ def publishFile(type, filename, newFilename):
     sendMessage(client, filename)
     sendMessage(client, newFilename)   
 
+# fetch the file from the server
+# type: the type of the command
+# filename: the original file name
 def fetchFile(type, filename):
     ## SEND THE FILE NAME ##
     sendMessage(client, type)  
@@ -50,12 +60,15 @@ def fetchFile(type, filename):
     if msg_length:
         msg_length = int(msg_length)
         listUser = client.recv(msg_length).decode(FORMAT)
+
     ## CHOOSE THE LIST OF USERS ##
     print("Choose the user to download the file: ")
     listUser = listUser.split("-")
     for i in range(len(listUser)):
         print(f"{i+1}. {listUser[i]}")
     choice = int(input("Enter your choice: "))
+
+    ## EXTRACT THE ADDRESS ##
     temp = ast.literal_eval(listUser[choice-1])
     address = temp[0]
 
@@ -64,7 +77,6 @@ def fetchFile(type, filename):
     new_socket.connect((address[0], 6000))  # cần thay đổi port
 
     ## SEND THE FILE NAME ##
-    
     filename = temp[1]
     sendMessage(new_socket, filename)
 
@@ -78,6 +90,7 @@ def fetchFile(type, filename):
         print("Receive the file successfully !")
     
 # handling all the command
+# string: the command from client
 def commandHandling(string):
     string = string.split(" ")
     if string[0] == "publish": # publish the file to the server
@@ -89,6 +102,8 @@ def commandHandling(string):
         client.close()
     return
 
+## P2P CONNECTION SECTION ##
+# handle the peer to peer connection
 def handle_peer(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
@@ -110,6 +125,8 @@ def handle_peer(conn, addr):
 
     conn.close()
 
+# start 2 threads 1 for the client-server connection 
+# and 1 for the peer to peer connection
 def start():
     server_socket.listen() # start listening for connections / also block lines of code below
     print(f"[LISTENING] Server is listening on {SERVER} \n")
