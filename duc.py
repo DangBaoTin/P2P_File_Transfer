@@ -5,7 +5,7 @@ HEADER = 64 # number of bytes of the message length
 PORT = 5050
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!DISCONNECT"
-SERVER = "192.168.1.174"
+SERVER = "192.168.1.6"
 ADDR = (SERVER, PORT) 
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
@@ -53,8 +53,7 @@ def inform():
     allFiles = ",".join(str(element) for element in listFile)
     sendMessage(allFiles)
     
-
-# handling fetch and publish 
+# handling all the command
 def commandHandling(string):
     string = string.split(" ")
     if string[0] == "publish": # publish the file to the server
@@ -64,8 +63,14 @@ def commandHandling(string):
     elif string[0] == "inform": # inform the server about all the current files
         sendMessage(string[0])
         inform()
+    elif string[0] == "close":
+        sendMessage(string[0])
+        client.close()
     return
 
 # commandHandling("publish send.txt receive.txt")
 # commandHandling("fetch receive.txt")
 commandHandling("inform")
+input("Press Enter to continue...")
+commandHandling("close")
+
