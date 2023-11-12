@@ -21,18 +21,53 @@ class Server:
                     break
 
                 command = data.split()
-                if command[0] == 'register':
-                    self.register_client(command[1], addr)
+                if command[0] == 'publish':
+                    self.publish_file(command[1], command[2], addr[0])
 
-                elif command[0] == 'list':
-                    client_socket.send(str(self.clients).encode('utf-8'))
+                elif command[0] == 'fetch':
+                    self.fetch_file(command[1], client_socket)
+
+                elif command[0] == 'discover':
+                    self.discover_files(command[1], client_socket)
+
+                elif command[0] == 'ping':
+                    client_socket.send("Pong".encode('utf-8'))
+
+                elif command[0] == 'connect':
+                    # Sending the signal to target client to establish the connection
+                    clientIP = command[1]
+                    target_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    address = (clientIP, 6000)
+                    target_client.connect(address)
+                    message = 2
+                    target_client.send(message.encode('utf-8'))
+                    target_client.close() # close socket
 
             except Exception as e:
                 print(f"Error handling client {addr}: {e}")
                 break
 
-    def register_client(self, client_name, client_addr):
-        self.clients[client_name] = client_addr
+    def publish_file(self, local_name, file_name, client_addr):
+        if client_addr not in self.clients:
+            self.clients[client_addr] = []
+
+        self.clients[client_addr].append((local_name, file_name))
+
+    def fetch_file(self, file_name, client_socket):
+        for client_addr, files in self.clients.items():
+            for local_name, stored_file_name in files:
+                if stored_file_name == file_name:
+                    client_socket.send(f"{client_addr} {local_name}".encode('utf-8'))
+                    return
+
+        client_socket.send("File not found".encode('utf-8'))
+
+    def discover_files(self, client_hostname, client_socket):
+        if (client_hostname, self.port) in self.clients:
+            files = "\n".join([f"{fname} ({lname})" for lname, fname in self.clients[(client_hostname, self.port)]])
+            client_socket.send(files.encode('utf-8'))
+        else:
+            client_socket.send("Host not found".encode('utf-8'))
 
     def start(self):
         print(f"Server listening on {self.host}:{self.port}")
@@ -45,6 +80,10 @@ class Server:
 if __name__ == "__main__":
     server = Server('0.0.0.0', 12345)
     server.start()
+
+
+
+
 
 
 

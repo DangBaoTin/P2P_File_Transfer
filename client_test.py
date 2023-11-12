@@ -1,96 +1,53 @@
 # Adapted from https://github.com/Vishal-shakaya/python_socket/blob/master/server.py
 
-
 import socket
 import threading
 
+# CLIENT_SEVER_IP = socket.gethostbyname(socket.gethostname())
+CLIENT_SEVER_ADDR = ('localhost', 6000)
+client_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create the socket (AF_INET: IPv4, SOCK_STREAM: TCP)
+client_server.bind(CLIENT_SEVER_ADDR) # bind the socket to the address
+
 class Client:
-    def __init__(self, server_host, server_port, client_name):
+    def __init__(self, server_host, server_port):
         self.server_host = server_host
         self.server_port = server_port
-        self.client_name = client_name
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect((server_host, server_port))
 
-    def handle_file_request(self, file_name, peer_addr):
-        try:
-            peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            peer_socket.connect(peer_addr)
-
-            peer_socket.send(f"fetch {file_name}".encode('utf-8'))
-            response = peer_socket.recv(1024).decode('utf-8')
-
-            if response == 'File not found':
-                print(f"File '{file_name}' not found on the selected peer.")
-            else:
-                peer_info = response.split()
-                peer_host = peer_info[0]
-                peer_port = int(peer_info[1])
-
-                self.fetch_file_from_peer(file_name, peer_host, peer_port)
-
-            peer_socket.close()
-
-        except Exception as e:
-            print(f"Error handling file request: {e}")
-
-    def fetch_file_from_peer(self, file_name, peer_host, peer_port):
-        try:
-            download_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            download_socket.connect((peer_host, peer_port))
-
-            download_socket.send(f"send {file_name}".encode('utf-8'))
-            response = download_socket.recv(1024).decode('utf-8')
-
-            with open(file_name, 'wb') as file:
-                while response:
-                    file.write(response.encode('utf-8'))
-                    response = download_socket.recv(1024).decode('utf-8')
-
-            print(f"File '{file_name}' downloaded successfully.")
-
-            download_socket.close()
-
-        except Exception as e:
-            print(f"Error fetching file from peer: {e}")
-
-    def start(self):
-        try:
-            self.client_socket.send(f"register {self.client_name}".encode('utf-8'))
-
-            response_handler = threading.Thread(target=self.handle_server_responses)
-            response_handler.start()
-
-            while True:
-                command = input("Enter command: ")
-                if command.startswith("fetch"):
-                    _, file_name, peer_name = command.split()
-                    peer_addr = self.fetch_peer_address(peer_name)
-                    self.handle_file_request(file_name, peer_addr)
-
-        except KeyboardInterrupt:
-            print("Client closed.")
+    def handle_P2P(conn, addr):
+        conn.send("Joined successfully!".encode('utf-8'))
 
     def handle_server_responses(self):
         while True:
             data = self.client_socket.recv(1024).decode('utf-8')
-            print(data)
+            if data == '127.0.0.1':
+                print(data)
+            if data == '2':
+                client_server.listen()
+                conn, addr = client_server.accept() # store the connection object (to send the information back) and the client address
+                thread = threading.Thread(target=self.handle_P2P, args=(conn, addr)) # create a thread for each client
+                thread.start() # start the thread
 
-    def fetch_peer_address(self, peer_name):
-        try:
-            self.client_socket.send(f"list".encode('utf-8'))
-            response = self.client_socket.recv(1024).decode('utf-8')
-            peers = eval(response)
-            return peers.get(peer_name, None)
+    def start(self):
+        response_handler = threading.Thread(target=self.handle_server_responses)
+        response_handler.start()
 
-        except Exception as e:
-            print(f"Error fetching peer address: {e}")
-            return None
+        while True:
+            try:
+                command = input("Enter command: ")
+                self.client_socket.send(command.encode('utf-8'))
+
+            except KeyboardInterrupt:
+                print("Client closed.")
+                break
 
 if __name__ == "__main__":
-    client_name = input("Enter your client name: ")
-    client = Client('127.0.0.1', 12345, client_name)
+    client = Client('127.0.0.1', 12345)
     client.start()
+
+
+
 
 
 
