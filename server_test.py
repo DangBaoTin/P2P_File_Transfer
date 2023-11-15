@@ -1,6 +1,4 @@
 # This is used to to test server, Mr. Khai please just do your work and do not mind us
-
-
 import socket
 import threading
 

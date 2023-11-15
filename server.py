@@ -85,7 +85,7 @@ class Server:
 def clientHandler(server, hostname):
     conn = server.client_pool[hostname]["connection"]
     while True:
-        try:
+        try: # client ngat ket noi
             data = conn.recv(HEADER)
             if not data:
                 break

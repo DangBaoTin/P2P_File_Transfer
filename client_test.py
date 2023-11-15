@@ -28,6 +28,7 @@ class Client:
                 conn, addr = client_server.accept() # store the connection object (to send the information back) and the client address
                 thread = threading.Thread(target=self.handle_P2P, args=(conn, addr)) # create a thread for each client
                 thread.start() # start the thread
+            print(data)
 
     def start(self):
         response_handler = threading.Thread(target=self.handle_server_responses)
@@ -43,7 +44,7 @@ class Client:
                 break
 
 if __name__ == "__main__":
-    client = Client('127.0.0.1', 12345)
+    client = Client('127.0.0.1', 12344)
     client.start()
 
 
