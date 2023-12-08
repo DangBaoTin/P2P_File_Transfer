@@ -13,7 +13,6 @@ ADDR = (SERVER, PORT)
 ADDR_P2P = (SERVER_P2P, PORT_P2P)
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
-
 class Client:
     def __init__(self):
         # create a socket to connect to the server
