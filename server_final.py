@@ -17,6 +17,7 @@ numOfClients = 0 # number of clients that the server knows
 
 class Server:
     def __init__(self):
+        # create a socket to listen to the client   
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create the socket (AF_INET: IPv4, SOCK_STREAM: TCP)
         self.server.bind(ADDR) # bind the socket to the address
 
@@ -29,6 +30,8 @@ class Server:
             numOfClients += 1 # increase the number of clients
             thread = threading.Thread(target=self.handle_client, args=(conn, addr)) # create a thread for each client
             thread.start() # start the thread
+            thread2 = threading.Thread(target=self.connectToClient)
+            thread2.start()
             # print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
 
     def handle_client(self, conn, addr):
@@ -45,15 +48,22 @@ class Server:
             else: # HANDLING THE CASE THE HOSTNAME ALREADY EXIST
                 self.sendMessage(conn, "The hostname already exist !")
         port_p2p = self.receiveMessage(conn)
+        port_client_listen = self.receiveMessage(conn)
+        print(f"Port to client: {port_client_listen}")
 
         # UPDATE INFORMATION IN THE CLIENT POOL
         client_pool[hostname] = {
             "ip": addr[0],
             "port_connected": addr[1],
             "port_p2p": port_p2p,
+            "port_client": port_client_listen,
             "fname": []
         }
         # print(client_pool)
+        # thread_connect_client = threading.Thread(target=self.connectToClient)
+        # thread_connect_client.start()
+        # TODO: handle a thread to connect to te client
+        # self.connectToClient(int(port_client_listen))
 
 
         while connect:
@@ -153,21 +163,33 @@ class Server:
         self.sendMessage(conn, client_pool[hostname]['ip'])
         self.sendMessage(conn, client_pool[hostname]['port_p2p'])
 
+    def connectToClient(self):
+        socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        command = input("Enter the command: ")
+        while command != "disconnect":
+            command = command.split()
+            if command[0] == "ping":
+                socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
+                self.ping(socket_client)
+            elif command[0] == "discover":
+                socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
+                self.dicoverHostname(socket_client)
+            command = input("Enter the command: ")
     
     def ping(self, conn):
-        pass
-        # self.sendMessage(conn, "ping")
-        # message = self.receiveMessage(conn)
-        # if message == "pong":
-        #     return True
-        # else:
-        #     return False
+        self.sendMessage(conn, "ping")
+        message = self.receiveMessage(conn)
+        if message == "pong":
+            print("The client is alive !")
+            return True
+        else:
+            return False
     
     def dicoverHostname(self, conn):
-        pass
-        # self.sendMessage(conn, "discover")
-        # hostname = self.receiveMessage(conn)
-        # return hostname
+        self.sendMessage(conn, "discover")
+        hostname = self.receiveMessage(conn)
+        print(f"The hostname of the client is {hostname}")
+        return
 
     
 

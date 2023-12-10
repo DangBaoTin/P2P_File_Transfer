@@ -6,11 +6,13 @@ import ast
 HEADER = 64 # number of bytes of the message length
 PORT = 5050
 PORT_P2P = 0 # random port
+PORT_LISTEN_SERVER = 0 # random port
 FORMAT = 'utf-8'
 SERVER = socket.gethostbyname(socket.gethostname())
 SERVER_P2P = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT) 
 ADDR_P2P = (SERVER_P2P, PORT_P2P)
+ADDR_LISTEN_SERVER = (SERVER, PORT_LISTEN_SERVER)
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
 class Client:
@@ -18,6 +20,10 @@ class Client:
         # create a socket to connect to the server
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         self.client.connect(ADDR)
+
+        # create a socket to connect to listen from the server
+        self.listen_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listen_server_socket.bind(ADDR_LISTEN_SERVER)
 
         # create a socket to listen other clients
         self.p2p_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -137,10 +143,34 @@ class Client:
             thread = threading.Thread(target=self.handlePeer, args=(conn, addr))
             thread.start()
 
+    def handleServer(self, conn, addr):
+        msg = self.receiveMessage(conn)
+        if msg == "ping":
+            self.sendMessage(conn, "pong")
+            conn.close()
+        if msg == "discover":
+            listFile = os.listdir()
+            self.sendMessage(conn, str(listFile))
+            conn.close()
+
+
+    def handleListenServer(self):
+        self.listen_server_socket.listen()
+        # print(f"[LISTENING] Listen server is listening on port {self.listen_server_socket.getsockname()[1]} \n")
+        while True:
+            conn, addr = self.listen_server_socket.accept()
+            print("Connect listen server successfully !")
+            thread = threading.Thread(target=self.handleServer, args=(conn, addr))
+            thread.start()
+
     def start(self):
         # start the thread to listen other clients
         thread_response_handler = threading.Thread(target=self.handleP2PConnection)
         thread_response_handler.start()
+
+        # start listent to the server
+        thread_listen_server = threading.Thread(target=self.handleListenServer)
+        thread_listen_server.start()
 
         # REGISTER THE HOST NAME #
         hostname = input("Enter your hostname:")
@@ -155,6 +185,10 @@ class Client:
         # SEND THE PORT HOST P2P
         port_p2p = self.p2p_server_socket.getsockname()[1]
         self.sendMessage(self.client, str(port_p2p))
+
+        # SEND THE PORT LISTEN SERVER
+        port_listen_server = self.listen_server_socket.getsockname()[1]
+        self.sendMessage(self.client, str(port_listen_server))
 
         while True:
             try:
