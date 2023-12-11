@@ -29,6 +29,42 @@ class Client:
         self.p2p_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.p2p_server_socket.bind(ADDR_P2P)
 
+    def start(self):
+        # start the thread to listen other clients
+        thread_response_handler = threading.Thread(target=self.handleP2PConnection)
+        thread_response_handler.start()
+
+        # start listent to the server
+        thread_listen_server = threading.Thread(target=self.handleListenServer)
+        thread_listen_server.start()
+
+        # REGISTER THE HOST NAME #
+        hostname = input("Enter your hostname : ")
+        self.sendMessage(self.client, hostname)
+        response = self.receiveMessage(self.client)
+        print(response)
+        while response.startswith("The hostname already exist !"):
+            hostname = input("Enter another name: ")
+            self.sendMessage(self.client, hostname)
+            response = self.receiveMessage(self.client)
+            
+        # SEND THE PORT HOST P2P
+        port_p2p = self.p2p_server_socket.getsockname()[1]
+        self.sendMessage(self.client, str(port_p2p))
+
+        # SEND THE PORT LISTEN SERVER
+        port_listen_server = self.listen_server_socket.getsockname()[1]
+        self.sendMessage(self.client, str(port_listen_server))
+
+        while True:
+            try:
+                command = input("Enter command: ")
+                self.commandHandler(command)
+
+            except KeyboardInterrupt:
+                print("Client closed.")
+                break
+
     def sendMessage(self, conn, msg):
         message = msg.encode(FORMAT) # encode the message
         msg_length = len(message) # get the message length
@@ -95,15 +131,20 @@ class Client:
         
         ## SEND THE FILE NAME TO THE PEER ##
         self.sendMessage(p2p_socket, filename)
-
         ## RECEIVE THE FILE ##
-        bytes_read = p2p_socket.recv(BUFFER_SIZE)
-        if not bytes_read:  # nothing is received  
-            print("No bytes to read \n")
-        else: # receive the file successfully, write into the file
-            with open(filename, "wb") as f:
+
+        flag = False
+        with open(filename, "wb") as f:
+            while True:
+                bytes_read = p2p_socket.recv(BUFFER_SIZE)
+                if not bytes_read:
+                    break
                 f.write(bytes_read)
-            print("Receive the file successfully ! \n")
+                flag = True
+        if flag:
+            print("Receive the file successfully ! ")
+        else:
+            print("No bytes to read !")
 
     def commandHandler(self, command):
         command = command.split()
@@ -164,41 +205,7 @@ class Client:
             thread = threading.Thread(target=self.handleServer, args=(conn, addr))
             thread.start()
 
-    def start(self):
-        # start the thread to listen other clients
-        thread_response_handler = threading.Thread(target=self.handleP2PConnection)
-        thread_response_handler.start()
 
-        # start listent to the server
-        thread_listen_server = threading.Thread(target=self.handleListenServer)
-        thread_listen_server.start()
-
-        # REGISTER THE HOST NAME #
-        hostname = input("Enter your hostname : ")
-        self.sendMessage(self.client, hostname)
-        response = self.receiveMessage(self.client)
-        print(response)
-        while response.startswith("The hostname already exist !"):
-            hostname = input("Enter another name: ")
-            self.sendMessage(self.client, hostname)
-            response = self.receiveMessage(self.client)
-            
-        # SEND THE PORT HOST P2P
-        port_p2p = self.p2p_server_socket.getsockname()[1]
-        self.sendMessage(self.client, str(port_p2p))
-
-        # SEND THE PORT LISTEN SERVER
-        port_listen_server = self.listen_server_socket.getsockname()[1]
-        self.sendMessage(self.client, str(port_listen_server))
-
-        while True:
-            try:
-                command = input("Enter command: ")
-                self.commandHandler(command)
-
-            except KeyboardInterrupt:
-                print("Client closed.")
-                break
 
 if __name__ == "__main__":
     client = Client()
