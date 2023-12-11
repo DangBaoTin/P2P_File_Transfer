@@ -99,23 +99,26 @@ class Client:
         ## RECEIVE THE FILE ##
         bytes_read = p2p_socket.recv(BUFFER_SIZE)
         if not bytes_read:  # nothing is received  
-            print("No bytes to read")
+            print("No bytes to read \n")
         else: # receive the file successfully, write into the file
             with open(filename, "wb") as f:
                 f.write(bytes_read)
-            print("Receive the file successfully !")
+            print("Receive the file successfully ! \n")
 
     def commandHandler(self, command):
         command = command.split()
-        if command[0] == "publish":
-            self.publishFile(command[0], command[1], command[2])
-        elif command[0] == "fetch":
-            self.fetchFile(command[0], command[1])
-        elif command[0] == "disconnect":
-            self.sendMessage(self.client, command[0])
-            self.client.close()
-            exit()
-        else:
+        try:
+            if command[0] == "publish":
+                self.publishFile(command[0], command[1], command[2])
+            elif command[0] == "fetch":
+                self.fetchFile(command[0], command[1])
+            elif command[0] == "disconnect":
+                self.sendMessage(self.client, command[0])
+                self.client.close()
+                exit()
+            else:
+                print("Invalid command !")
+        except IndexError:
             print("Invalid command !")
 
     def handlePeer(self, conn, addr):
@@ -153,13 +156,11 @@ class Client:
             self.sendMessage(conn, str(listFile))
             conn.close()
 
-
     def handleListenServer(self):
         self.listen_server_socket.listen()
-        # print(f"[LISTENING] Listen server is listening on port {self.listen_server_socket.getsockname()[1]} \n")
         while True:
             conn, addr = self.listen_server_socket.accept()
-            print("Connect listen server successfully !")
+            # print("Connect listen server successfully ! \n")
             thread = threading.Thread(target=self.handleServer, args=(conn, addr))
             thread.start()
 
@@ -173,7 +174,7 @@ class Client:
         thread_listen_server.start()
 
         # REGISTER THE HOST NAME #
-        hostname = input("Enter your hostname:")
+        hostname = input("Enter your hostname : ")
         self.sendMessage(self.client, hostname)
         response = self.receiveMessage(self.client)
         print(response)

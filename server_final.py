@@ -49,7 +49,6 @@ class Server:
                 self.sendMessage(conn, "The hostname already exist !")
         port_p2p = self.receiveMessage(conn)
         port_client_listen = self.receiveMessage(conn)
-        print(f"Port to client: {port_client_listen}")
 
         # UPDATE INFORMATION IN THE CLIENT POOL
         client_pool[hostname] = {
@@ -59,18 +58,11 @@ class Server:
             "port_client": port_client_listen,
             "fname": []
         }
-        # print(client_pool)
-        # thread_connect_client = threading.Thread(target=self.connectToClient)
-        # thread_connect_client.start()
-        # TODO: handle a thread to connect to te client
-        # self.connectToClient(int(port_client_listen))
 
 
         while connect:
             # receive the command
             command = self.receiveMessage(conn)
-            # print(f"{addr} sent {command}")
-            # address = addr # may be need to change to addr[0] for the real IP address
             
             # hadle the command
             if command == "publish":
@@ -164,36 +156,54 @@ class Server:
         self.sendMessage(conn, client_pool[hostname]['port_p2p'])
 
     def connectToClient(self):
-        socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         command = input("Enter the command: ")
         while command != "disconnect":
             command = command.split()
-            if command[0] == "ping":
-                socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
-                self.ping(socket_client)
-            elif command[0] == "discover":
-                socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
-                self.dicoverHostname(socket_client)
+            try:
+                if command[0] == "ping":
+                    if command[1] not in client_pool:
+                        print("The hostname does not exist !")
+                        command = input("Enter the command: ")
+                        continue
+                    socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
+                    self.ping(socket_client)
+                    socket_client.close()
+
+                elif command[0] == "discover":
+                    if command[1] not in client_pool:
+                        print("The hostname does not exist !")
+                        command = input("Enter the command: ")
+                        continue
+                    socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
+                    self.dicoverHostname(socket_client)
+                    socket_client.close()
+                else :
+                    print("Invalid command !")
+            except IndexError:
+                print("Invalid command !")
             command = input("Enter the command: ")
     
     def ping(self, conn):
         self.sendMessage(conn, "ping")
         message = self.receiveMessage(conn)
         if message == "pong":
-            print("The client is alive !")
+            print("Pong !")
             return True
         else:
             return False
     
     def dicoverHostname(self, conn):
         self.sendMessage(conn, "discover")
+        #TODO : check lại xem trả ra cái list file của server giữ hay list file trong máy
         hostname = self.receiveMessage(conn)
-        print(f"The hostname of the client is {hostname}")
+        print(f"All the files of the client is {hostname}")
         return
 
     
 
 if __name__ == "__main__":
-    print("[STARTING] Server is starting...")
+    print("[STARTING] Server is starting... \n")
     server = Server()
     server.start()
