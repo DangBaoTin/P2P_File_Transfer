@@ -141,7 +141,10 @@ class Server:
 
         # UPDATE THE LIST OF MANAGED FILES
         if status == "success":
-            if (hostname_0, realFilename) not in listManagedFiles[filename]:
+            if filename not in listManagedFiles:
+                with self.lock:
+                    listManagedFiles[filename] = [(hostname_0, realFilename)]
+            elif (hostname_0, realFilename) not in listManagedFiles[filename]:
                 with self.lock:
                     listManagedFiles[filename].append((hostname_0, realFilename))
             client_pool[hostname_0]['fname'].append(realFilename)
@@ -260,7 +263,6 @@ class Server:
         self.server.close()
         os.kill(os.getpid(), signal.SIGINT)
     
-
 if __name__ == "__main__":
     print("[STARTING] Server is starting... \n")
     server = Server()

@@ -2,6 +2,8 @@ import socket
 import os
 import threading
 import ast
+import time
+from tqdm import tqdm
 
 HEADER = 64 # number of bytes of the message length
 PORT = 5050
@@ -160,7 +162,6 @@ class Client:
         else:
             self.sendMessage(self.client, "fail")
 
-
     def commandHandler(self, command):
         command = command.split()
         try:
@@ -182,14 +183,20 @@ class Client:
         # print(f"[NEW CONNECTION] {addr} connected.")
         filename = self.receiveMessage(conn)
         # print(filename)
+        start_time = time.time()
+        file_size = os.path.getsize(filename)
+        sent_size = 0
+        update_interval = 1  # Update progress every second
         with open(filename, "rb") as f: 
-            while True:
-                # read the bytes from the file
+            with tqdm(total=file_size, unit='B', unit_scale=True, desc='Sending', ascii=True) as pbar:
                 bytes_read = f.read(BUFFER_SIZE)
-                if not bytes_read:
-                # file transmitting is done
-                    break
-                conn.sendall(bytes_read)
+                while bytes_read:
+                    # read the bytes from the file
+                    conn.sendall(bytes_read)
+                    sent_size += len(bytes_read)
+                    pbar.update(len(bytes_read))
+                    bytes_read = f.read(BUFFER_SIZE)
+                    
                 # print("File sent !")
         conn.close()
 
@@ -225,7 +232,6 @@ class Client:
             # print("Connect listen server successfully ! \n")
             thread = threading.Thread(target=self.handleServer, args=(conn, addr))
             thread.start()
-
 
 
 if __name__ == "__main__":
