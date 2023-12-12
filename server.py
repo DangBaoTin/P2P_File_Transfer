@@ -30,7 +30,6 @@ class Server:
     def start(self):
         self.server.listen() # start listening for connections / also block lines of code below
         print(f"[LISTENING] Server is listening on {SEVER} \n")
-
         mainThread = threading.Thread(target=self.handle_server_command)
         mainThread.start()
         with self.lock:
@@ -47,7 +46,6 @@ class Server:
             clientThread.start() # start the thread
             with self.lock:
                 self.threads.append(clientThread)
-
             # print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
 
     def sendMessage(self, conn, msg):
@@ -81,11 +79,15 @@ class Server:
                     listManagedFiles[newFilename].append((hostname, oldFilename))
                 else: # HANDLE THE CASE THE FILE IS ALREADY IN THE SERVER
                     print(f"The file {oldFilename} is already in the server !")
+                    print("> ", end="")
+                    return
 
         with self.lock:
         # Add to the client repository
             if oldFilename not in client_pool[hostname]['fname']:
                 client_pool[hostname]['fname'].append(oldFilename)
+        print("Server received the filename !")
+        print("> ", end="")
         
     def updateFileListWhenClientDisconnect(self, conn, hostname):
         global listManagedFiles
@@ -150,7 +152,8 @@ class Server:
             client_pool[hostname_0]['fname'].append(realFilename)
 
     def handle_client(self, conn, addr):
-        # print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
+        print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
+        print("> ", end="")
         global numOfClients
         global client_pool
         connect = True
@@ -187,7 +190,8 @@ class Server:
                 self.handleFetchFile(conn)
             elif command == "disconnect":
                 self.updateFileListWhenClientDisconnect(conn, hostname)
-                # print(f"{hostname} is disconnected")
+                print(f"{hostname} is disconnected")
+                print("> ", end="")
                 # print(listManagedFiles)
                 conn.close()
                 connect = False
@@ -200,7 +204,7 @@ class Server:
     
     def handle_server_command(self):
         global completion_event
-        command = input("Enter the command : ")
+        command = input("> ")
         while command != "disconnect":
             command = command.split()
             try:
@@ -236,7 +240,7 @@ class Server:
                 print("Invalid command !")
 
 
-            command = input("Enter the command : ")
+            command = input("> ")
             completion_event.clear()
        
     def ping(self, conn, event):

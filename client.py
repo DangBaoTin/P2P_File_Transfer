@@ -64,7 +64,7 @@ class Client:
 
         while True:
             try:
-                command = input("Enter command: ")
+                command = input("> ")
                 if command == "disconnect":
                     self.commandHandler(command)
                     break
@@ -110,7 +110,6 @@ class Client:
         self.sendMessage(self.client, filename)
         self.sendMessage(self.client, self.hostname)
 
-        
         response = self.receiveMessage(self.client)
         print(response)
         ## FILE NOT FOUND CASE
@@ -158,8 +157,10 @@ class Client:
                 f.write(bytes_read)
         
         if flag:
+            print("File received !")
             self.sendMessage(self.client, "success")
         else:
+            print("File failed to receive !")
             self.sendMessage(self.client, "fail")
 
     def commandHandler(self, command):
@@ -186,9 +187,8 @@ class Client:
         start_time = time.time()
         file_size = os.path.getsize(filename)
         sent_size = 0
-        update_interval = 1  # Update progress every second
         with open(filename, "rb") as f: 
-            with tqdm(total=file_size, unit='B', unit_scale=True, desc='Sending', ascii=True) as pbar:
+            with tqdm( total=file_size, unit='B', unit_scale=True, desc='Sending', ascii=True, colour='red') as pbar:
                 bytes_read = f.read(BUFFER_SIZE)
                 while bytes_read:
                     # read the bytes from the file
@@ -198,6 +198,9 @@ class Client:
                     bytes_read = f.read(BUFFER_SIZE)
                     
                 # print("File sent !")
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Time to send file: {elapsed_time:.2f} seconds \n> ", end="")
         conn.close()
 
     def handleP2PConnection(self):
