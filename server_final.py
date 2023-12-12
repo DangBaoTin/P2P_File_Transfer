@@ -29,19 +29,18 @@ class Server:
         self.server.listen() # start listening for connections / also block lines of code below
         print(f"[LISTENING] Server is listening on {SEVER} \n")
 
-
-        thread2 = threading.Thread(target=self.handle_server_command)
-        thread2.start()
+        mainThread = threading.Thread(target=self.handle_server_command)
+        mainThread.start()
         with self.lock:
-            self.threads.append(thread2)
+            self.threads.append(mainThread)
         while True:
             conn, addr = self.server.accept() # store the connection object (to send the information back) and the client address
             global numOfClients
             numOfClients += 1 # increase the number of clients
-            thread = threading.Thread(target=self.handle_client, args=(conn, addr)) # create a thread for each client
-            thread.start() # start the thread
+            clientThread = threading.Thread(target=self.handle_client, args=(conn, addr)) # create a thread for each client
+            clientThread.start() # start the thread
             with self.lock:
-                self.threads.append(thread)
+                self.threads.append(clientThread)
 
             # print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
 
@@ -68,21 +67,20 @@ class Server:
         newFilename = self.receiveMessage(conn)  
 
         # ADD THE FILE TO THE LIST OF MANAGED FILES
-        if newFilename not in listManagedFiles:
-            listManagedFiles[newFilename] = [(hostname, oldFilename)]
-        else:
-            if (hostname, oldFilename) not in listManagedFiles[newFilename]:
-                listManagedFiles[newFilename].append((hostname, oldFilename))
-            else: # HANDLE THE CASE THE FILE IS ALREADY IN THE SERVER
-                print(f"The file {oldFilename} is already in the server !")
+        with self.lock:
+            if newFilename not in listManagedFiles:
+                listManagedFiles[newFilename] = [(hostname, oldFilename)]
+            else:
+                if (hostname, oldFilename) not in listManagedFiles[newFilename]:
+                    listManagedFiles[newFilename].append((hostname, oldFilename))
+                else: # HANDLE THE CASE THE FILE IS ALREADY IN THE SERVER
+                    print(f"The file {oldFilename} is already in the server !")
 
+        with self.lock:
         # Add to the client repository
-        if oldFilename not in client_pool[hostname]['fname']:
-            client_pool[hostname]['fname'].append(oldFilename)
+            if oldFilename not in client_pool[hostname]['fname']:
+                client_pool[hostname]['fname'].append(oldFilename)
         
-        # print(client_pool)
-        # print(listManagedFiles)
-
     def updateFileListWhenClientDisconnect(self, conn, hostname):
         global listManagedFiles
         listManagedFiles_copy = listManagedFiles.copy()
@@ -90,34 +88,57 @@ class Server:
         for key in listManagedFiles_copy:
             for i in range(len(listManagedFiles_copy[key])):
                 if listManagedFiles_copy[key][i][0] == hostname:
-                    listManagedFiles[key].pop(i)
+                    with self.lock:
+                        listManagedFiles[key].pop(i)
                     break
-            if len(listManagedFiles[key]) == 0:
-                del listManagedFiles[key]
-                break
+            with self.lock:
+                if len(listManagedFiles[key]) == 0:
+                    del listManagedFiles[key]
+                    break
         # delete that hostname
-        del client_pool[hostname]
+        with self.lock: 
+            del client_pool[hostname]
         
-    
     def handleFetchFile(self, conn):
+        global listManagedFiles
         filename = self.receiveMessage(conn)
-
+        hostname_0 = self.receiveMessage(conn)
         # HANDLE THE FILE NOT FOUND CASE
         if filename not in listManagedFiles:
             self.sendMessage(conn, "File not found !")
             return
-        else:
-            self.sendMessage(conn, "Here are the list users have that file !")
+        elif len(listManagedFiles[filename]) == 1:
+            for element in listManagedFiles[filename]:
+                if element[0] == hostname_0:
+                    self.sendMessage(conn, "No other hostname has that file !")
+                    return
+        self.sendMessage(conn, "Here are the list users have that file !")
     
-        # print(listManagedFiles[filename])
-        listUser = "-".join(str(element) for element in listManagedFiles[filename])
+
+        listUser = "-".join(str(element) for element in listManagedFiles[filename] if element[0] != hostname_0)
         # SEND THE LIST OF USERS HAVE THAT FILE
         # print(listUser)
         self.sendMessage(conn, listUser)
-        ## RECEIVE THE HOSTNAME FROM CLIENT
+        ## RECEIVE THE HOSTNAME CHOSEN FROM CLIENT
         hostname = self.receiveMessage(conn)
         self.sendMessage(conn, client_pool[hostname]['ip'])
         self.sendMessage(conn, client_pool[hostname]['port_p2p'])
+
+        # FIND THE REAL FILENAME
+        for element in listManagedFiles[filename]:
+            if element[0] == hostname:
+                realFilename = element[1]
+                break
+        
+        # RECEIVE THE STATUS
+        status = self.receiveMessage(conn)
+
+        # UPDATE THE LIST OF MANAGED FILES
+        if status == "success":
+            if (hostname_0, realFilename) not in listManagedFiles[filename]:
+                with self.lock:
+                    listManagedFiles[filename].append((hostname_0, realFilename))
+            client_pool[hostname_0]['fname'].append(realFilename)
 
     def handle_client(self, conn, addr):
         # print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
@@ -136,13 +157,14 @@ class Server:
         port_client_listen = self.receiveMessage(conn)
 
         # UPDATE INFORMATION IN THE CLIENT POOL
-        client_pool[hostname] = {
-            "ip": addr[0],
-            "port_connected": addr[1],
-            "port_p2p": port_p2p,
-            "port_client": port_client_listen,
-            "fname": []
-        }
+        with self.lock:
+            client_pool[hostname] = {
+                "ip": addr[0],
+                "port_connected": addr[1],
+                "port_p2p": port_p2p,
+                "port_client": port_client_listen,
+                "fname": []
+            }
 
 
         while connect:
@@ -156,22 +178,20 @@ class Server:
                 self.handleFetchFile(conn)
             elif command == "disconnect":
                 self.updateFileListWhenClientDisconnect(conn, hostname)
-                print(f"{hostname} is disconnected")
-                print(listManagedFiles)
+                # print(f"{hostname} is disconnected")
+                # print(listManagedFiles)
                 conn.close()
                 connect = False
                 numOfClients -= 1
     
-        # if numOfClients == 0:
-        #     print("No clients connected !")
-        #     print("Server is shutting down...")
-        # server.close()
-        # exit()
+        if numOfClients == 0:
+            print("No clients connected !")
+            print("Server is shutting down...")
+            self.exit()
     
-
     def handle_server_command(self):
         global completion_event
-        command = input("Enter the command: ")
+        command = input("Enter the command : ")
         while command != "disconnect":
             command = command.split()
             try:
@@ -206,11 +226,7 @@ class Server:
 
             command = input("Enter the command : ")
             completion_event.clear()
-            # for thread in self.threads:
-            #     if thread.is_alive():
-            #         thread.join()
-            
-    
+       
     def ping(self, conn, event):
         self.sendMessage(conn, "ping")
         message = self.receiveMessage(conn)
@@ -231,6 +247,11 @@ class Server:
         event.set()
         return
 
+    def exit(self):
+        # self.server.close()
+        for thread in self.threads:
+            if thread.is_alive():
+                thread.join()
     
 
 if __name__ == "__main__":

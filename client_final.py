@@ -29,6 +29,8 @@ class Client:
         self.p2p_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.p2p_server_socket.bind(ADDR_P2P)
 
+        self.hostname = ""
+
     def start(self):
         # start the thread to listen other clients
         thread_response_handler = threading.Thread(target=self.handleP2PConnection)
@@ -47,7 +49,9 @@ class Client:
             hostname = input("Enter another name: ")
             self.sendMessage(self.client, hostname)
             response = self.receiveMessage(self.client)
-            
+            print(response)
+        
+        self.hostname = hostname
         # SEND THE PORT HOST P2P
         port_p2p = self.p2p_server_socket.getsockname()[1]
         self.sendMessage(self.client, str(port_p2p))
@@ -59,11 +63,17 @@ class Client:
         while True:
             try:
                 command = input("Enter command: ")
+                if command == "disconnect":
+                    self.commandHandler(command)
+                    break
                 self.commandHandler(command)
 
             except KeyboardInterrupt:
                 print("Client closed.")
                 break
+        
+
+        print("Client closed.")
 
     def sendMessage(self, conn, msg):
         message = msg.encode(FORMAT) # encode the message
@@ -97,11 +107,15 @@ class Client:
         ## SEND THE FILE NAME ##
         self.sendMessage(self.client, type)  
         self.sendMessage(self.client, filename)
+        self.sendMessage(self.client, self.hostname)
 
-        ## FILE NOT FOUND CASE
+        
         response = self.receiveMessage(self.client)
         print(response)
+        ## FILE NOT FOUND CASE
         if response.startswith("File not found !"):
+            return
+        if response.startswith("No other hostname has that file !"):
             return
 
         ## RECEIVE THE LIST OF USERS HAVE THAT FILE ##
@@ -131,9 +145,9 @@ class Client:
         
         ## SEND THE FILE NAME TO THE PEER ##
         self.sendMessage(p2p_socket, filename)
-        ## RECEIVE THE FILE ##
 
-        # flag = False
+        ## RECEIVE THE FILE ##
+        flag = False
         with open(filename, "wb") as f:
             while True:
                 bytes_read = p2p_socket.recv(BUFFER_SIZE)
@@ -141,11 +155,12 @@ class Client:
                     break
                 flag = True
                 f.write(bytes_read)
-                
-        # if flag:
-        #     print("Receive the file successfully ! ")
-        # else:
-        #     print("No bytes to read !")
+        
+        if flag:
+            self.sendMessage(self.client, "success")
+        else:
+            self.sendMessage(self.client, "fail")
+
 
     def commandHandler(self, command):
         command = command.split()
@@ -157,7 +172,8 @@ class Client:
             elif command[0] == "disconnect":
                 self.sendMessage(self.client, command[0])
                 self.client.close()
-                exit()
+                # self.listen_server_socket.close()
+                # self.p2p_server_socket.close()
             else:
                 print("Invalid command !")
         except IndexError:
@@ -165,7 +181,6 @@ class Client:
 
     def handlePeer(self, conn, addr):
         # print(f"[NEW CONNECTION] {addr} connected.")
-
         filename = self.receiveMessage(conn)
         # print(filename)
         with open(filename, "rb") as f: 
