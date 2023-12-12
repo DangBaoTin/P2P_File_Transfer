@@ -72,7 +72,6 @@ class Client:
                 print("Client closed.")
                 break
         
-
         print("Client closed.")
 
     def sendMessage(self, conn, msg):
@@ -172,8 +171,8 @@ class Client:
             elif command[0] == "disconnect":
                 self.sendMessage(self.client, command[0])
                 self.client.close()
-                # self.listen_server_socket.close()
-                # self.p2p_server_socket.close()
+                self.listen_server_socket.close()
+                self.p2p_server_socket.close()
             else:
                 print("Invalid command !")
         except IndexError:
@@ -198,7 +197,10 @@ class Client:
         self.p2p_server_socket.listen()
         # print(f"[LISTENING] P2P is listening on port {self.p2p_server_socket.getsockname()[1]} \n")
         while True:
-            conn, addr = self.p2p_server_socket.accept()
+            try:
+                conn, addr = self.p2p_server_socket.accept()
+            except:
+                exit()
             # print("Connect p2p successfully !")
             thread = threading.Thread(target=self.handlePeer, args=(conn, addr))
             thread.start()
@@ -216,7 +218,10 @@ class Client:
     def handleListenServer(self):
         self.listen_server_socket.listen()
         while True:
-            conn, addr = self.listen_server_socket.accept()
+            try:
+                conn, addr = self.listen_server_socket.accept()
+            except:
+                exit()
             # print("Connect listen server successfully ! \n")
             thread = threading.Thread(target=self.handleServer, args=(conn, addr))
             thread.start()

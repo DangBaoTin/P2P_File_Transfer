@@ -1,5 +1,7 @@
 import socket
 import threading
+import os
+import signal
 
 HEADER = 64 # number of bytes of the message length
 PORT = 5050
@@ -33,8 +35,12 @@ class Server:
         mainThread.start()
         with self.lock:
             self.threads.append(mainThread)
+        
         while True:
-            conn, addr = self.server.accept() # store the connection object (to send the information back) and the client address
+            try:
+                conn, addr = self.server.accept()
+            except:
+                exit()
             global numOfClients
             numOfClients += 1 # increase the number of clients
             clientThread = threading.Thread(target=self.handle_client, args=(conn, addr)) # create a thread for each client
@@ -207,7 +213,6 @@ class Server:
                     socket_client.close()
                     completion_event.wait()
                     
-
                 elif command[0] == "discover":
                     if command[1] not in client_pool:
                         print("The hostname does not exist !")
@@ -219,10 +224,14 @@ class Server:
                     self.dicoverHostname(socket_client, command[1], completion_event)
                     socket_client.close()
                     completion_event.wait()
+
+                elif command[0] == "disconnect":
+                    exit()
                 else :
                     print("Invalid command !")
             except IndexError:
                 print("Invalid command !")
+
 
             command = input("Enter the command : ")
             completion_event.clear()
@@ -248,10 +257,8 @@ class Server:
         return
 
     def exit(self):
-        # self.server.close()
-        for thread in self.threads:
-            if thread.is_alive():
-                thread.join()
+        self.server.close()
+        os.kill(os.getpid(), signal.SIGINT)
     
 
 if __name__ == "__main__":
