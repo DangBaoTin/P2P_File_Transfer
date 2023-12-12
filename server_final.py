@@ -14,6 +14,7 @@ BUFFER_SIZE = 4096 # send 4096 bytes each time step
 listManagedFiles = dict() # list of files that the server manages
 client_pool = dict() # list of information of client
 numOfClients = 0 # number of clients that the server knows
+completion_event = threading.Event()
 
 class Server:
     def __init__(self):
@@ -21,17 +22,27 @@ class Server:
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create the socket (AF_INET: IPv4, SOCK_STREAM: TCP)
         self.server.bind(ADDR) # bind the socket to the address
 
+        self.lock = threading.Lock()
+        self.threads = []
+
     def start(self):
         self.server.listen() # start listening for connections / also block lines of code below
         print(f"[LISTENING] Server is listening on {SEVER} \n")
+
+
+        thread2 = threading.Thread(target=self.handle_server_command)
+        thread2.start()
+        with self.lock:
+            self.threads.append(thread2)
         while True:
             conn, addr = self.server.accept() # store the connection object (to send the information back) and the client address
             global numOfClients
             numOfClients += 1 # increase the number of clients
             thread = threading.Thread(target=self.handle_client, args=(conn, addr)) # create a thread for each client
             thread.start() # start the thread
-            thread2 = threading.Thread(target=self.connectToClient)
-            thread2.start()
+            with self.lock:
+                self.threads.append(thread)
+
             # print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
 
     def sendMessage(self, conn, msg):
@@ -109,7 +120,7 @@ class Server:
         self.sendMessage(conn, client_pool[hostname]['port_p2p'])
 
     def handle_client(self, conn, addr):
-        print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
+        # print(f"[NEW CONNECTION] {addr} is connected.") # confirm the connection
         global numOfClients
         global client_pool
         connect = True
@@ -157,7 +168,9 @@ class Server:
         # server.close()
         # exit()
     
-    def connectToClient(self):
+
+    def handle_server_command(self):
+        global completion_event
         command = input("Enter the command: ")
         while command != "disconnect":
             command = command.split()
@@ -168,9 +181,12 @@ class Server:
                         command = input("Enter the command: ")
                         continue
                     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    # with self.lock:
                     socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
-                    self.ping(socket_client)
+                    self.ping(socket_client, completion_event)
                     socket_client.close()
+                    completion_event.wait()
+                    
 
                 elif command[0] == "discover":
                     if command[1] not in client_pool:
@@ -178,30 +194,41 @@ class Server:
                         command = input("Enter the command: ")
                         continue
                     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    # with self.lock:
                     socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
-                    self.dicoverHostname(socket_client)
+                    self.dicoverHostname(socket_client, command[1], completion_event)
                     socket_client.close()
+                    completion_event.wait()
                 else :
                     print("Invalid command !")
             except IndexError:
                 print("Invalid command !")
 
-            command = input("Enter the command: ")
+            command = input("Enter the command : ")
+            completion_event.clear()
+            # for thread in self.threads:
+            #     if thread.is_alive():
+            #         thread.join()
+            
     
-    def ping(self, conn):
+    def ping(self, conn, event):
         self.sendMessage(conn, "ping")
         message = self.receiveMessage(conn)
         if message == "pong":
             print("Pong !")
-            return True
+            event.set()
+            return
         else:
-            return False
+            event.set()
+            return
     
-    def dicoverHostname(self, conn):
-        self.sendMessage(conn, "discover")
+    def dicoverHostname(self, conn, hostname , event):
+        # self.sendMessage(conn, "discover")
         #TODO : check lại xem trả ra cái list file của server giữ hay list file trong máy
-        hostname = self.receiveMessage(conn)
+        # hostname = self.receiveMessage(conn)
+        hostname = client_pool[hostname]['fname']
         print(f"All the files of the client is {hostname}")
+        event.set()
         return
 
     

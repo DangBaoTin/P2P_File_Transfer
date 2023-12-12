@@ -133,18 +133,19 @@ class Client:
         self.sendMessage(p2p_socket, filename)
         ## RECEIVE THE FILE ##
 
-        flag = False
+        # flag = False
         with open(filename, "wb") as f:
             while True:
                 bytes_read = p2p_socket.recv(BUFFER_SIZE)
                 if not bytes_read:
                     break
-                f.write(bytes_read)
                 flag = True
-        if flag:
-            print("Receive the file successfully ! ")
-        else:
-            print("No bytes to read !")
+                f.write(bytes_read)
+                
+        # if flag:
+        #     print("Receive the file successfully ! ")
+        # else:
+        #     print("No bytes to read !")
 
     def commandHandler(self, command):
         command = command.split()
@@ -163,10 +164,10 @@ class Client:
             print("Invalid command !")
 
     def handlePeer(self, conn, addr):
-        print(f"[NEW CONNECTION] {addr} connected.")
+        # print(f"[NEW CONNECTION] {addr} connected.")
 
         filename = self.receiveMessage(conn)
-        print(filename)
+        # print(filename)
         with open(filename, "rb") as f: 
             while True:
                 # read the bytes from the file
@@ -175,7 +176,7 @@ class Client:
                 # file transmitting is done
                     break
                 conn.sendall(bytes_read)
-        print("File sent !")
+                # print("File sent !")
         conn.close()
 
     def handleP2PConnection(self):
@@ -183,7 +184,7 @@ class Client:
         # print(f"[LISTENING] P2P is listening on port {self.p2p_server_socket.getsockname()[1]} \n")
         while True:
             conn, addr = self.p2p_server_socket.accept()
-            print("Connect p2p successfully !")
+            # print("Connect p2p successfully !")
             thread = threading.Thread(target=self.handlePeer, args=(conn, addr))
             thread.start()
 
@@ -192,10 +193,10 @@ class Client:
         if msg == "ping":
             self.sendMessage(conn, "pong")
             conn.close()
-        if msg == "discover":
-            listFile = os.listdir()
-            self.sendMessage(conn, str(listFile))
-            conn.close()
+        # if msg == "discover":
+        #     listFile = os.listdir()
+        #     self.sendMessage(conn, str(listFile))
+        #     conn.close()
 
     def handleListenServer(self):
         self.listen_server_socket.listen()
