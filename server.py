@@ -5,7 +5,7 @@ import signal
 
 HEADER = 64 # number of bytes of the message length
 PORT = 5050
-# SEVER = "192.168.100.5" # hardcode IP address of the server
+# SERVER = "172.0.0.123" # hardcode IP address of the server
 SERVER = socket.gethostbyname(socket.gethostname())	# Get the IP address of the server
 ADDR = (SERVER, PORT) # tuple of IP address and port number
 FORMAT = 'utf-8'
@@ -211,11 +211,11 @@ class Server:
                 if command[0] == "ping":
                     if command[1] not in client_pool:
                         print("The hostname does not exist !")
-                        command 
                         command = input("> ")
                         continue
                     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     # with self.lock:
+                    # print(client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client']))
                     socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
                     self.ping(socket_client, completion_event)
                     socket_client.close()
@@ -226,11 +226,11 @@ class Server:
                         print("The hostname does not exist !")
                         command = input("> ")
                         continue
-                    socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    # with self.lock:
-                    socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
+                    # socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    # # with self.lock:
+                    # socket_client.connect((client_pool[command[1]]['ip'], int(client_pool[command[1]]['port_client'])))
                     self.dicoverHostname(socket_client, command[1], completion_event)
-                    socket_client.close()
+                    # socket_client.close()
                     completion_event.wait()
 
                 elif command[0] == "disconnect":
@@ -259,8 +259,8 @@ class Server:
         # self.sendMessage(conn, "discover")
         #TODO : check lại xem trả ra cái list file của server giữ hay list file trong máy
         # hostname = self.receiveMessage(conn)
-        hostname = client_pool[hostname]['fname']
-        print(f"All the files of the client is {hostname}")
+        listFile = client_pool[hostname]['fname']
+        print(f"All the files of the client is {listFile}")
         event.set()
         return
 

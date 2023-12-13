@@ -10,11 +10,13 @@ PORT = 5050
 PORT_P2P = 0 # random port
 PORT_LISTEN_SERVER = 0 # random port
 FORMAT = 'utf-8'
+# SERVER = "172.0.0.129"
+# SERVER_P2P = "172.0.0.123"
 SERVER = socket.gethostbyname(socket.gethostname())
 SERVER_P2P = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT) 
 ADDR_P2P = (SERVER_P2P, PORT_P2P)
-ADDR_LISTEN_SERVER = (SERVER, PORT_LISTEN_SERVER)
+ADDR_LISTEN_SERVER = (SERVER_P2P, PORT_LISTEN_SERVER)
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
 class Client:
@@ -146,16 +148,20 @@ class Client:
         ## SEND THE FILE NAME TO THE PEER ##
         self.sendMessage(p2p_socket, filename)
 
-
+        ## RECEIVE THE FILE SIZE ##
+        file_size = int(self.receiveMessage(p2p_socket))
+        received_size = 0
         ## RECEIVE THE FILE ##
         flag = False
         with open(filename, "wb") as f:
-            while True:
+            with tqdm( total=file_size, unit='B', unit_scale=True, desc='Receiving', ascii=True, colour='green') as pbar:
                 bytes_read = p2p_socket.recv(BUFFER_SIZE)
-                if not bytes_read:
-                    break
-                flag = True
-                f.write(bytes_read)
+                while bytes_read:
+                    flag = True
+                    received_size += len(bytes_read)
+                    pbar.update(len(bytes_read))
+                    f.write(bytes_read)
+                    bytes_read = p2p_socket.recv(BUFFER_SIZE)
         
         if flag:
             print("File received !")
@@ -187,6 +193,7 @@ class Client:
         # print(filename)
         start_time = time.time()
         file_size = os.path.getsize(filename)
+        self.sendMessage(conn, str(file_size))
         sent_size = 0
         with open(filename, "rb") as f: 
             with tqdm( total=file_size, unit='B', unit_scale=True, desc='Sending', ascii=True, colour='red') as pbar:
