@@ -6,8 +6,8 @@ import signal
 HEADER = 64 # number of bytes of the message length
 PORT = 5050
 # SEVER = "192.168.100.5" # hardcode IP address of the server
-SEVER = socket.gethostbyname(socket.gethostname())	# Get the IP address of the server
-ADDR = (SEVER, PORT) # tuple of IP address and port number
+SERVER = socket.gethostbyname(socket.gethostname())	# Get the IP address of the server
+ADDR = (SERVER, PORT) # tuple of IP address and port number
 FORMAT = 'utf-8'
 BUFFER_SIZE = 4096 # send 4096 bytes each time step
 
@@ -29,7 +29,7 @@ class Server:
 
     def start(self):
         self.server.listen() # start listening for connections / also block lines of code below
-        print(f"[LISTENING] Server is listening on {SEVER} \n")
+        print(f"[LISTENING] Server is listening on {SERVER} \n")
         mainThread = threading.Thread(target=self.handle_server_command)
         mainThread.start()
         with self.lock:
@@ -211,7 +211,8 @@ class Server:
                 if command[0] == "ping":
                     if command[1] not in client_pool:
                         print("The hostname does not exist !")
-                        command = input("Enter the command: ")
+                        command 
+                        command = input("> ")
                         continue
                     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     # with self.lock:
@@ -223,7 +224,7 @@ class Server:
                 elif command[0] == "discover":
                     if command[1] not in client_pool:
                         print("The hostname does not exist !")
-                        command = input("Enter the command: ")
+                        command = input("> ")
                         continue
                     socket_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     # with self.lock:

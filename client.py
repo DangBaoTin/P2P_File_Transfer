@@ -38,7 +38,7 @@ class Client:
         thread_response_handler = threading.Thread(target=self.handleP2PConnection)
         thread_response_handler.start()
 
-        # start listent to the server
+        # start listen to the server
         thread_listen_server = threading.Thread(target=self.handleListenServer)
         thread_listen_server.start()
 
@@ -145,6 +145,7 @@ class Client:
         
         ## SEND THE FILE NAME TO THE PEER ##
         self.sendMessage(p2p_socket, filename)
+
 
         ## RECEIVE THE FILE ##
         flag = False
