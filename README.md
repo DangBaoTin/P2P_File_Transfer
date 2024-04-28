@@ -23,7 +23,7 @@ This project is about developing a simple Peer-to-Peer file-sharing network appl
 ![App architechture](./app-illustration.png)
 
 ## Installation and Usage
-### Setting up
+### 1. Setting up
 Clone the repository:
 ```bash
 git clone https://github.com/DangBaoTin/hospital-dbs-main.git
@@ -46,17 +46,17 @@ python client.py
 ```
 Note that we can open as many client as we want.
 
-### Hostname register
+### 2. Hostname register
 Choose a hostname to represent themselves on the network. The network doesn’t allow 2 client to have the same hostname. If you choose a hostname that has been taken, you will be required to choose again.
 
-### Ping command
+### 3. Ping command
 The server can perform live check the client. Type in the terminal:
 ```bash
 ping hostname
 ```
-Server will receive the `Pong !` message indicates that the client is alive. And a return string `The hostname does not exist !` indicates that there’s no hostname with that name currently in the network.
+Server will receive the "Pong !" message indicates that the client is alive. And a return string "The hostname does not exist !" indicates that there’s no hostname with that name currently in the network.
 
-### Commands
+### 4. Commands
 - The client will inform the server a filename through the `publish lname fname` command, which `lname` is the filename on the client local machine, `fname` is the filename informed to the server. Then the server can use the discover command to inspect the file list of that client.
 
 - To fetch a specific file, the client will use the `fetch fname` command, which `fname` is the requested filename.
